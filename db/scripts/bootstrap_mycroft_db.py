@@ -247,59 +247,11 @@ for insert_file in insert_files:
     except FileNotFoundError:
         pass
 
-print('Building account.agreement table')
-mycroft_db.db.autocommit = False
-insert_sql = (
-    "insert into account.agreement VALUES (default, %s, '1', '[today,]', %s)"
-)
-privacy_policy_path = path.join(
-    environ.get('MYCROFT_DOC_DIR', '/opt/selene/documentation'),
-    '_pages',
-    'embed-privacy-policy.md'
-)
-terms_of_use_path = path.join(
-    environ.get('MYCROFT_DOC_DIR', '/opt/selene/documentation'),
-    '_pages',
-    'embed-terms-of-use.md'
-)
-docs = {
-    'Privacy Policy': privacy_policy_path,
-    'Terms of Use': terms_of_use_path
-}
-try:
-    for agrmt_type, doc_path in docs.items():
-        lobj = mycroft_db.db.lobject(0, 'b')
-        with open(doc_path) as doc:
-            header_delimiter_count = 0
-            while True:
-                rec = doc.readline()
-                if rec == '---\n':
-                    header_delimiter_count += 1
-                if header_delimiter_count == 2:
-                    break
-            doc_html = markdown(
-                doc.read(),
-                output_format='html5'
-            )
-            lobj.write(doc_html)
-        mycroft_db.execute_sql(insert_sql, args=(agrmt_type, lobj.oid))
-        mycroft_db.execute_sql(
-            "grant select on large object {} to selene".format(lobj.oid)
-        )
-    mycroft_db.execute_sql(insert_sql, args=('Open Dataset', None))
-except:
-    mycroft_db.db.rollback()
-    raise
-else:
-    mycroft_db.db.commit()
-
-mycroft_db.db.autocommit = True
-
 print('Building geography.country table')
 data_dir = environ.get('MYCROFT_DOC_DIR', '/opt/selene/data')
 country_file = 'countryInfo.txt'
 country_insert = """
-INSERT INTO 
+INSERT INTO
     geography.country (iso_code, name)
 VALUES
     ('{iso_code}', '{country_name}')
@@ -322,12 +274,12 @@ with open(path.join(data_dir, country_file)) as countries:
 print('Building geography.region table')
 region_file = 'admin1CodesASCII.txt'
 region_insert = """
-INSERT INTO 
+INSERT INTO
     geography.region (country_id, region_code, name)
 VALUES
     (
         (SELECT id FROM geography.country WHERE iso_code = %(iso_code)s),
-        %(region_code)s, 
+        %(region_code)s,
         %(region_name)s)
 """
 with open(path.join(data_dir, region_file)) as regions:
@@ -344,12 +296,12 @@ with open(path.join(data_dir, region_file)) as regions:
 print('Building geography.timezone table')
 timezone_file = 'timeZones.txt'
 timezone_insert = """
-INSERT INTO 
+INSERT INTO
     geography.timezone (country_id, name, gmt_offset, dst_offset)
 VALUES
     (
         (SELECT id FROM geography.country WHERE iso_code = %(iso_code)s),
-        %(timezone_name)s, 
+        %(timezone_name)s,
         %(gmt_offset)s,
         %(dst_offset)s
     )
